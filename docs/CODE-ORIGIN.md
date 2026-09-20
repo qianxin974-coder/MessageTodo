@@ -25,7 +25,11 @@ Which files come from DoFirst vs. are newly written for MessageTodo.
   `tasks_delete` policy; `set_owner_user_id()` trigger; `get_user_settings()` helper.
   Written for MessageTodo (DoFirst had no such tables); only its SQL *style* follows
   the inherited migrations.
-- `supabase/tests/rls_phase3.sql` — **new** cross-user RLS test (requires Supabase/Postgres).
+- `supabase/migrations/014_phase3_audit_hardening.sql` — **new** Phase-3 audit hardening: privacy
+  invariant triggers (original_text allowed only when settings.keep_original_text AND keep_original),
+  reminders CHECK constraints (offset_minutes, notification_status).
+- `supabase/tests/rls_phase3.sql` — **new** cross-user RLS test (requires Supabase/Postgres); extended with
+  [T8] write-isolation, [T9] auth.uid() trigger fill, [T10] privacy invariant.
 - `packages/db/schemas.ts` — Phase 3 **additions**: `TaskSourceCreateSchema`,
   `ReminderCreateSchema/UpdateSchema`, `SettingsUpsertSchema`, `AttachmentCreateSchema`;
   also **fixed** the inherited `TaskUpdateSchema.priority` range (1–5 → 1–10).

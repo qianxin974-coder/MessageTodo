@@ -71,13 +71,14 @@ describe("ReminderCreateSchema (reminders)", () => {
     expect(parsed.offsetMinutes).toBe(30);
   });
 
-  it("rejects when both remindAt and offsetMinutes provided", () => {
-    const result = ReminderCreateSchema.safeParse({
+  it("accepts when both remindAt and offsetMinutes provided (offset=provenance, remind_at=authoritative)", () => {
+    const parsed = ReminderCreateSchema.parse({
       taskId: crypto.randomUUID(),
       remindAt: "2026-09-25T10:00:00.000Z",
       offsetMinutes: 30
     });
-    expect(result.success).toBe(false);
+    expect(parsed.remindAt).toBe("2026-09-25T10:00:00.000Z");
+    expect(parsed.offsetMinutes).toBe(30);
   });
 
   it("rejects when neither provided", () => {
@@ -88,6 +89,12 @@ describe("ReminderCreateSchema (reminders)", () => {
   it("rejects negative offset", () => {
     const result = ReminderCreateSchema.safeParse({ taskId: crypto.randomUUID(), offsetMinutes: -5 });
     expect(result.success).toBe(false);
+  });
+  it("rejects offset beyond DB bound (1 year = 525600)", () => {
+    const result = ReminderCreateSchema.safeParse({ taskId: crypto.randomUUID(), offsetMinutes: 525601 });
+    expect(result.success).toBe(false);
+    const ok = ReminderCreateSchema.safeParse({ taskId: crypto.randomUUID(), offsetMinutes: 525600 });
+    expect(ok.success).toBe(true);
   });
 
   it("accepts every reminder status", () => {

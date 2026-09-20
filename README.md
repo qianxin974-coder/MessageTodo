@@ -4,7 +4,7 @@
 
 看到一条消息 → 分享/粘贴给 MessageTodo → 自动识别任务和时间 → 一键确认 → 到点提醒。手机、电脑通用。
 
-> 状态：开发中。当前完成 **Phase 1 + Phase 2 + Phase 3**（项目搭建 / Web 跑通 / 数据库模型与 RLS）。
+> 状态：开发中。当前完成 **Phase 1 + Phase 2 + Phase 3（含最终验收审计）**（项目搭建 / Web 跑通 / 数据库模型与 RLS）。
 > 技术底座：DoFirst（MIT）。详见 `THIRD_PARTY_NOTICES.md`、`docs/CODE-ORIGIN.md`、`docs/PHASE3_DB_NOTES.md`。
 
 ## 功能规划（路线图）
@@ -45,7 +45,7 @@ MessageTodo/
 │   ├── rate-limit/         # 令牌桶限流
 │   └── recurrence/         # 周期任务算法
 ├── supabase/
-│   ├── migrations/         # 数据库迁移（001–012 基线来自 DoFirst；013 MessageTodo 数据模型）
+│   ├── migrations/         # 数据库迁移（001–012 基线来自 DoFirst；013 数据模型；014 审计加固）
 │   ├── tests/              # 真实 RLS 交叉用户测试（需 Supabase/Postgres 环境）
 │   ├── config.toml         # Supabase CLI 本地配置
 │   └── seed_test_tasks.sql # 测试数据

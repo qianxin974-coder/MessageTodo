@@ -107,16 +107,16 @@ export const TaskSourceCreateSchema = z.object({
 });
 export type TaskSourceCreateInput = z.infer<typeof TaskSourceCreateSchema>;
 
-// ---- reminders 创建：remindAt(绝对) 与 offsetMinutes(相对 due_at) 二选一 ----
+// ---- reminders 创建：remindAt(权威触发时间) 与 offsetMinutes(相对 due_at 的提前量意图) ----
+// 两者可共存：offset 记录“提前 N 分钟”的意图（provenance），remind_at 记录计算/覆盖后的绝对时间；
+// snooze 只改 remind_at。至少提供其一；offset 上限与 DB 约束一致（1 年，见 014 migration）。
 export const ReminderCreateSchema = z.object({
   taskId: z.string().uuid(),
   remindAt: z.string().datetime().optional(),
-  offsetMinutes: z.number().int().min(1).max(10080).optional(), // 1 分钟 ~ 1 周
+  offsetMinutes: z.number().int().min(1).max(525600).optional(), // 1 分钟 ~ 1 年
   status: ReminderStatus.default("scheduled"),
   recurrence: RecurrenceRuleSchema,
   notificationStatus: NotificationStatus.optional()
-}).refine(d => !(d.remindAt && d.offsetMinutes), {
-  message: "remindAt 与 offsetMinutes 只能二选一"
 }).refine(d => Boolean(d.remindAt || d.offsetMinutes), {
   message: "必须提供 remindAt 或 offsetMinutes"
 });
@@ -125,7 +125,7 @@ export type ReminderCreateInput = z.infer<typeof ReminderCreateSchema>;
 export const ReminderUpdateSchema = z.object({
   reminderId: z.string().uuid(),
   remindAt: z.string().datetime().optional(),
-  offsetMinutes: z.number().int().min(1).max(10080).optional(),
+  offsetMinutes: z.number().int().min(1).max(525600).optional(),
   status: ReminderStatus.optional(),
   notificationStatus: NotificationStatus.optional()
 });

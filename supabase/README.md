@@ -25,6 +25,7 @@ psql "$DATABASE_URL" -f supabase/tests/rls_phase3.sql
 ## 结构
 - `migrations/001_*.sql` … `012_*.sql` — DoFirst MIT 基线（保持不变）
 - `migrations/013_message_todo_models.sql` — MessageTodo 数据模型（settings / task_sources / reminders / attachments + 严格 RLS）
+- `migrations/014_phase3_audit_hardening.sql` — 审计加固：原文保存隐私不变量触发器 + reminders 约束
 - `tests/rls_phase3.sql` — 真实 RLS 交叉用户测试
 - `config.toml` — Supabase CLI 配置（本地端口、auth 回调、站点 URL）
 - `seed_test_tasks.sql` — 可选测试数据

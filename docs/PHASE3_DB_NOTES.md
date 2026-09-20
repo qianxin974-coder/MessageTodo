@@ -97,3 +97,35 @@ for all using (auth.uid() = user_id) with check (auth.uid() = user_id)
 - 修正 `cron/nag` 中 `tasks(... owner_id ...)` 的字段选择 bug（tasks 无 owner_id 列）。
 - 新增 settings / task_sources / reminders / attachments 的 CRUD API（Phase 3 只建模不建 API，避免过度开发）。
 - Inbox 页面从 `task_submissions` 迁移到 `task_sources`。
+
+---
+
+## 9. Phase 3 最终验收审计（追加 014，只做最小修正）
+
+### 9.1 tasks 的 ownership / RLS —— 审计结论（未重构，仅记录）
+- **结论：当前单用户产品模型下可靠。** `tasks.pool_id` 为 NOT NULL（任务必有 pool，无孤儿任务）；读访问严格要求 `is_member(auth.uid(), pool_id)`；MessageTodo 每人一个私有 pool，跨用户天然隔离。
+- **已知风险（继承自 DoFirst，本阶段不修，Phase 4+ 决定）：**
+  1. `tasks_update` 策略只有 `using`、**没有 `with check`**：创建者（created_by 匹配）或 pool owner 可把任务改到**任意 pool**（含他人 pool），导致任务被推入他人 pool 从而暴露给对方成员。
+  2. 被移出 pool 的成员仍可 update/delete 自己创建的旧任务（策略只看 created_by，不看当前 membership）。
+  3. 任务换 pool 后，其 `task_sources/reminders/attachments` 仍绑定原 user_id → 新 pool 成员能看到任务但看不到它的来源/原文（隐私安全但不一致）。
+  - 缓解/后续方向：给 tasks 加 user_id + 收紧 update/delete 策略（加 `with check` 与 membership 校验）——**放到 Phase 4/5 再决策，不在此处重构**。
+
+### 9.2 原始消息隐私优先级 —— 已修正（新增 014）
+- 最终规则（数据库层强制不变量，`014_phase3_audit_hardening.sql`）：
+  - `original_text 非空 ⟹ settings.keep_original_text = true AND task_sources.keep_original = true`
+  - settings=false → 无论单条如何设置，都不得保存；settings=true 且 keep_original=true → 可保存；settings=true 且 keep_original=false → 不保存
+- 修正前：013 只有字段，**无任何 DB 约束/触发器/API 保证该规则**（Phase 3 尚未新增 API）。
+- 修正：`trg_task_sources_privacy`（BEFORE INSERT/UPDATE 强制清空）+ `trg_settings_privacy_scrub`（全局开关转 false 时清除存量原文）。规则在 DB 层闭环，不依赖未来 API 是否自觉。
+
+### 9.3 reminders 数据约束 —— 已修正（新增 014 + zod 对齐）
+- `remind_at` 为**权威触发时间**（NOT NULL）；`offset_minutes` 为相对 due_at 的**提前量意图（provenance）**，可同时存在（snooze 只改 remind_at）——不再存在“绝对/相对互斥”的非法组合，规避了原 zod “二选一”与 DB 模型的矛盾。
+- 新增 CHECK：`offset_minutes` 必须为 `(0, 525600]`（1 年）；`notification_status` 限定 `pending/delivered/failed/cancelled`（可扩展，新增状态走一次 ALTER）。
+- `status` 已是枚举约束；`recurrence` JSONB 预留周期提醒；snooze / 周期 / 投递状态数据模型均足够。Phase 4 若需“完成任务自动取消 reminders”，建议届时用 tasks.status 触发器实现（本阶段不加，避免过度设计）。
+- zod 同步：`ReminderCreateSchema` 由“二选一”放宽为“至少其一”，offset 上限对齐 DB（525600）。
+
+### 9.4 RLS 真实测试脚本 —— 已补齐（只改测试脚本）
+- 原 `supabase/tests/rls_phase3.sql` 已覆盖用户点名的 6 项；审计后补：
+  - [T8] A 不能修改/删除 B 的 settings/task_sources/reminders/attachments（写隔离）
+  - [T9] 客户端省略 user_id → 触发器以 auth.uid() 填充归属
+  - [T10] 隐私不变量：settings=false 时新原文被清空、存量原文被清除
+- 说明：本机无 Docker/Supabase，**未真实执行**；交付脚本，需在用户 Supabase 环境 `psql "$DATABASE_URL" -f supabase/tests/rls_phase3.sql` 验证。静态断言（`packages/db/rls.test.ts`）已在本机 CI 通过。

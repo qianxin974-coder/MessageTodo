@@ -61,7 +61,8 @@ The following were written new for MessageTodo and carry no third-party license 
 | Area | Notes |
 |---|---|
 | `supabase/migrations/013_message_todo_models.sql` | New MessageTodo data model: `settings`, `task_sources`, `reminders`, `attachments` + strict `auth.uid() = user_id` RLS + `tasks` soft-delete/version columns + `tasks_delete` policy + `get_user_settings()` helper. Independent from DoFirst schema design (though written in the same style as the DoFirst migrations we inherited). |
-| `supabase/tests/rls_phase3.sql` | Cross-user RLS test script for a real Supabase/Postgres environment. |
+| `supabase/tests/rls_phase3.sql` | Cross-user RLS test script for a real Supabase/Postgres environment (T1–T10). |
 | `packages/db/schemas.ts` (Phase 3 additions) | Zod schemas for the new models (`TaskSource`, `Reminder`, `Settings`, `Attachment`). |
 | `packages/db/schemas.test.ts`, `packages/db/rls.test.ts` | New unit/static tests. |
-| `docs/PHASE3_DB_NOTES.md` | Phase 3 DB design + Phase 1 §13 difference note. |
+| `supabase/migrations/014_phase3_audit_hardening.sql` | Phase-3 audit hardening: privacy invariant triggers + reminders CHECK constraints. |
+| `docs/PHASE3_DB_NOTES.md` | Phase 3 DB design + Phase 1 §13 difference note + audit conclusions (§9). |

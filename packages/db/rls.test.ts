@@ -160,3 +160,33 @@ describe("API privacy regression: no raw message / body in logs", () => {
     expect(src).not.toMatch(/Sending notification for task \$\{task\.id\}:\s*\$\{task\.title\}/);
   });
 });
+
+describe("Phase 3 audit hardening (014): privacy invariant enforced in DB", () => {
+  it("defines enforce_task_source_privacy() that nulls original_text when NOT(settings AND keep_original)", () => {
+    expect(sql).toMatch(/create\s+or\s+replace\s+function\s+public\.enforce_task_source_privacy/i);
+    expect(sql).toMatch(/not\s*\(\s*v_keep\s+and\s+new\.keep_original\s*\)/i);
+    expect(sql).toMatch(/new\.original_text\s*:=\s*null/i);
+  });
+  it("attaches trg_task_sources_privacy to task_sources insert/update", () => {
+    expect(sql).toMatch(/create\s+trigger\s+trg_task_sources_privacy[\s\S]*?on\s+public\.task_sources/i);
+  });
+  it("defines scrub_task_source_originals() + trg_settings_privacy_scrub (turning privacy off scrubs stored text)", () => {
+    expect(sql).toMatch(/create\s+or\s+replace\s+function\s+public\.scrub_task_source_originals/i);
+    expect(sql).toMatch(/create\s+trigger\s+trg_settings_privacy_scrub[\s\S]*?on\s+public\.settings/i);
+    expect(sql).toMatch(/update\s+public\.task_sources/i);
+  });
+});
+
+describe("Phase 3 audit hardening (014): reminders data constraints", () => {
+  it("bounds offset_minutes to (0, 525600] minutes", () => {
+    expect(sql).toMatch(/reminders_offset_minutes_check/i);
+    expect(sql).toMatch(/offset_minutes\s+is\s+null\s+or\s*\(\s*offset_minutes\s*>\s*0\s+and\s+offset_minutes\s*<=\s*525600\s*\)/i);
+  });
+  it("constrains notification_status to known values (extensible via ALTER)", () => {
+    expect(sql).toMatch(/reminders_notification_status_check/i);
+    expect(sql).toMatch(/notification_status\s+in\s*\(\s*'pending'\s*,\s*'delivered'\s*,\s*'failed'\s*,\s*'cancelled'\s*\)/i);
+  });
+  it("documents offset_minutes as provenance with remind_at as authoritative", () => {
+    expect(sql).toMatch(/权威触发时间/i);
+  });
+});
