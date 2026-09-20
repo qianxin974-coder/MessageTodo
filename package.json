@@ -1,0 +1,29 @@
+{
+  "name": "messagetodo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MessageTodo — turn any message into a todo with reminders (Web + Mobile).",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @messagetodo/web dev",
+    "dev:web": "pnpm --filter @messagetodo/web dev",
+    "build": "pnpm --filter @messagetodo/web build",
+    "start": "pnpm --filter @messagetodo/web start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
+    "@types/node": "^20.0.0",
+    "cross-env": "^7.0.3",
+    "eslint": "^9.13.0",
+    "eslint-config-next": "15.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

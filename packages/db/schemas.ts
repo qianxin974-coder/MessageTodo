@@ -1,0 +1,65 @@
+import { z } from "zod";
+
+export const QuickAddSchema = z.object({
+  poolId: z.string().uuid(),
+  title: z.string().min(1).max(300),
+  description: z.string().max(5000).optional(),
+  visibility: z.enum(["owner_only","household","work","public"]).optional(),
+  priority: z.number().int().min(1).max(10).nullable().optional(),
+  tags: z.array(z.string().min(1).max(40)).optional()
+});
+
+export type QuickAddInput = z.infer<typeof QuickAddSchema>;
+
+export const TodayProposeSchema = z.object({
+  poolId: z.string().uuid(),
+  taskId: z.string().uuid(),
+  date: z.string() // YYYY-MM-DD
+});
+
+export const TodayRespondSchema = z.object({
+  proposalId: z.string().uuid(),
+  action: z.enum(["accept","decline","move"]),
+  newDate: z.string().optional()
+});
+
+export const MemberInviteSchema = z.object({
+  poolId: z.string().uuid(),
+  email: z.string().email(),
+  role: z.enum(["spouse","colleague","guest"])
+});
+
+export const EmailAliasCreateSchema = z.object({
+  poolId: z.string().uuid()
+});
+
+export const TaskUpdateSchema = z.object({
+  taskId: z.string().uuid(),
+  title: z.string().min(1).max(300).optional(),
+  description: z.string().max(5000).optional(),
+  priority: z.number().int().min(1).max(5).optional(),
+  visibility: z.enum(["owner_only","household","work","public"]).optional(),
+  status: z.enum(["open","in_progress","done","archived"]).optional(),
+  dueAt: z.string().optional() // ISO timestamp for due date/time
+});
+
+export const TaskDeleteSchema = z.object({
+  taskId: z.string().uuid()
+});
+
+export const PoolCreateSchema = z.object({
+  name: z.string().min(1).max(100),
+  timezone: z.string().optional()
+});
+
+export const TodayLimitUpdateSchema = z.object({
+  poolId: z.string().uuid(),
+  delegateId: z.string().uuid(),
+  todayLimit: z.number().int().min(0).nullable() // null = unlimited, 0 = none, 1+ = specific limit
+});
+
+export const PriorityLabelUpdateSchema = z.object({
+  poolId: z.string().uuid(),
+  priorityNumber: z.number().int().min(1),
+  label: z.string().min(1).max(50)
+});

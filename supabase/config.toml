@@ -1,0 +1,41 @@
+# Supabase CLI configuration for MessageTodo (local development)
+# Docs: https://supabase.com/docs/guides/local-development
+
+project_id = "messagetodo"
+
+[db]
+port = 54322
+major_version = 15
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db.migrations]
+enabled = true
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed_test_tasks.sql"]
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/callback"]
+jwt_expiry = 3600
+enable_signup = true
+
+[edge_runtime]
+enabled = false
+
+[analytics]
+enabled = false
+
+[functions]
+enabled = false
+
+[storage]
+enabled = true
