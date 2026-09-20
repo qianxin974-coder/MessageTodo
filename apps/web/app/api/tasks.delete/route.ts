@@ -83,7 +83,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(`[tasks.delete] Task deleted: ${taskId} (${task.title}) by user ${user.id}`);
 
     return NextResponse.json({
       message: "Task deleted successfully",

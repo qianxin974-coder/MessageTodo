@@ -5,25 +5,21 @@ import { createServerClient } from "../../../lib/supabase-server";
 /**
  * POST /api/tasks.quickAdd
  * Body: { poolId, title, description?, priority?, tags?, visibility?, source? }
+ *
+ * Phase 3: removed request-body / raw-title console logging (privacy: 日志不得出现原始消息)。
  */
 export async function POST(req: NextRequest) {
-  console.log('[tasks.quickAdd] POST request received');
   try {
     const body = await req.json();
-    console.log('[tasks.quickAdd] Body:', body);
 
     const parsed = QuickAddSchema.safeParse(body);
     if (!parsed.success) {
-      console.error('[tasks.quickAdd] Validation error:', parsed.error.flatten());
       return NextResponse.json({ error: "invalid_body", details: parsed.error.flatten() }, { status: 400 });
     }
     const { poolId, title, description, priority, tags, visibility } = parsed.data;
 
-    console.log('[tasks.quickAdd] Creating server client...');
     const supabase = await createServerClient();
-    console.log('[tasks.quickAdd] Getting session...');
     const { data: { session } } = await supabase.auth.getSession();
-    console.log('[tasks.quickAdd] Session user:', session?.user?.id || 'none');
     if (!session?.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     const user = session.user;
 
@@ -43,14 +39,6 @@ export async function POST(req: NextRequest) {
     const allTags = tags || [];
     const finalPriority = priority ?? null; // Default to null (Unsorted)
     const dueAt = null; // No due date parsing for now
-
-    console.log(`[tasks.quickAdd] Creating task:`, {
-      originalTitle: title,
-      cleanTitle,
-      description,
-      finalPriority,
-      requestPriority: priority
-    });
 
     // Create task
     const { data: task, error } = await supabase

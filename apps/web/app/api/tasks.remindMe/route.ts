@@ -19,7 +19,6 @@ export async function POST(req: NextRequest) {
   console.log('[tasks.remindMe] POST request received');
   try {
     const body = await req.json();
-    console.log('[tasks.remindMe] Body:', body);
 
     const parsed = RemindMeSchema.safeParse(body);
     if (!parsed.success) {

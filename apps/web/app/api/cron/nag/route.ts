@@ -102,7 +102,7 @@ export async function GET(_req: NextRequest) {
           continue;
         }
 
-        console.log(`[nag] Sending notification for task ${task.id}: ${task.title}`);
+        console.log(`[nag] Sending notification for task ${task.id}`);
 
         // Get user nagging preferences for quiet hours
         const { data: prefs } = await supabase

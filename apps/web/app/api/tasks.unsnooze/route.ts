@@ -17,7 +17,6 @@ export async function POST(req: NextRequest) {
   console.log('[tasks.unsnooze] POST request received');
   try {
     const body = await req.json();
-    console.log('[tasks.unsnooze] Body:', body);
 
     const parsed = UnsnoozeSchema.safeParse(body);
     if (!parsed.success) {
