@@ -1,0 +1,10 @@
+﻿import fs from "fs";
+import { createClient } from "@supabase/supabase-js";
+const text = fs.readFileSync("apps/web/.env.local","utf8").replace(/^\uFEFF/,"");
+const env = Object.fromEntries(text.split(/\r?\n/).filter(Boolean).map(l=>{const i=l.indexOf("=");return [l.slice(0,i),l.slice(i+1)];}));
+const state = JSON.parse(fs.readFileSync("apps/web/.smoke-state.json","utf8"));
+const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {auth:{persistSession:false,autoRefreshToken:false}});
+const { data, error } = await admin.from("reminders").select("id,status,notification_status,last_notified_at").eq("id", state.reminderId).single();
+if (error) throw error;
+console.log(JSON.stringify({ reminder: data, pass: data.status === "fired" }, null, 2));
+if (data.status !== "fired") process.exit(2);

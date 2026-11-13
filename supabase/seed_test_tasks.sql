@@ -49,6 +49,6 @@ BEGIN
 
     RAISE NOTICE 'Successfully created 15 test tasks for user % in pool %', v_user_id, v_pool_id;
   ELSE
-    RAISE EXCEPTION 'Could not find user or pool. Please sign in first and create a pool.';
+    RAISE NOTICE 'No user/pool yet ¡ª skip seed. Sign in and create a pool first, then re-run seed if needed.';
   END IF;
 END $$;

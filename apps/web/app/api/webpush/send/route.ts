@@ -11,6 +11,8 @@ import webpush from "web-push";
 // Configure web-push with VAPID keys
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY!;
+const pushProxy = process.env.WEB_PUSH_PROXY || process.env.HTTPS_PROXY || process.env.https_proxy;
+const pushOptions = pushProxy ? { proxy: pushProxy } : undefined;
 
 if (!vapidPublicKey || !vapidPrivateKey) {
   throw new Error("VAPID keys not configured");
@@ -101,7 +103,8 @@ export async function POST(req: NextRequest) {
         try {
           await webpush.sendNotification(
             pushSubscription,
-            JSON.stringify(payload)
+            JSON.stringify(payload),
+            pushOptions
           );
 
           console.log(`[webpush/send] Sent to ${sub.endpoint.substring(0, 50)}...`);

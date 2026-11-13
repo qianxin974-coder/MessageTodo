@@ -99,3 +99,23 @@ export type TaskVisibility = "owner_only" | "household" | "work" | "public";
 export type MemberRole = "owner" | "spouse" | "colleague" | "guest";
 export type ProposalStatus = "proposed" | "accepted" | "declined" | "moved";
 export type InboundSource = "app" | "email" | "voice" | "api";
+
+/**
+ * Prefer cookie SSR client; when Authorization: Bearer is present (API/mobile),
+ * return an anon client scoped to that JWT so RLS queries see auth.uid().
+ */
+export function createBearerClient(authHeader: string) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  return createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { autoRefreshToken: false, persistSession: false }
+  });
+}
+
+export async function createRequestClient(authHeader?: string | null) {
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    return createBearerClient(authHeader);
+  }
+  return createServerClient();
+}

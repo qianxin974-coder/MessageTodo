@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { QuickAddSchema } from "@messagetodo/db/schemas";
-import { createServerClient } from "../../../lib/supabase-server";
+import { createRequestClient, getAuthUser, createServerClient } from "../../../lib/supabase-server";
 
 /**
  * POST /api/tasks.quickAdd
- * Body: { poolId, title, description?, priority?, tags?, visibility?, source? }
+ * Body: { poolId, title, description?, priority?, tags?, visibility?, dueAt? }
  *
- * Phase 3: removed request-body / raw-title console logging (privacy: 日志不得出现原始消息)。
+ * Minimal loop: when dueAt is provided, also insert a reminders row
+ * (remind_at = dueAt - settings.default_reminder_offset_minutes, or dueAt if offset is 0).
  */
 export async function POST(req: NextRequest) {
   try {
@@ -16,15 +17,15 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: "invalid_body", details: parsed.error.flatten() }, { status: 400 });
     }
-    const { poolId, title, description, priority, tags, visibility } = parsed.data;
+    const { poolId, title, description, priority, tags, visibility, dueAt } = parsed.data;
 
-    const supabase = await createServerClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-    const user = session.user;
+    const authHeader = req.headers.get("authorization");
+    const sessionClient = await createServerClient();
+    const user = await getAuthUser(sessionClient, authHeader);
+    if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    const supabase = await createRequestClient(authHeader);
 
-    // Verify membership + permission
-    const { data: member, error: memberError } = await supabase
+    const { data: member } = await supabase
       .from("pool_members")
       .select("user_id, can_add")
       .eq("pool_id", poolId)
@@ -34,13 +35,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
-    // Use title and priority directly (no parsing for now)
     const cleanTitle = title.trim();
     const allTags = tags || [];
-    const finalPriority = priority ?? null; // Default to null (Unsorted)
-    const dueAt = null; // No due date parsing for now
+    const finalPriority = priority ?? null;
+    const dueAtIso = dueAt ?? null;
 
-    // Create task
     const { data: task, error } = await supabase
       .from("tasks")
       .insert({
@@ -51,7 +50,7 @@ export async function POST(req: NextRequest) {
         priority: finalPriority,
         visibility: visibility || "owner_only",
         status: "open",
-        due_at: dueAt
+        due_at: dueAtIso
       })
       .select("id")
       .single();
@@ -59,32 +58,64 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "db_error", details: error.message }, { status: 500 });
     }
 
-    // Insert tags if present
     if (allTags.length) {
       const { data: tagRows } = await supabase
         .from("tags")
         .select("id, name")
         .in("name", allTags)
         .eq("pool_id", poolId);
-      const idByName = new Map<string,string>();
-      tagRows?.forEach((r:any) => idByName.set(r.name, r.id));
-      // create missing tags
-      const missing = allTags.filter(t => !idByName.has(t));
+      const idByName = new Map();
+      tagRows?.forEach((r) => idByName.set(r.name, r.id));
+      const missing = allTags.filter((t) => !idByName.has(t));
       if (missing.length) {
         const { data: created } = await supabase
           .from("tags")
-          .insert(missing.map(name => ({ pool_id: poolId, name })))
+          .insert(missing.map((name) => ({ pool_id: poolId, name })))
           .select();
-        created?.forEach((r:any) => idByName.set(r.name, r.id));
+        created?.forEach((r) => idByName.set(r.name, r.id));
       }
-      const tagIds = allTags.map(n => idByName.get(n)).filter(Boolean);
+      const tagIds = allTags.map((n) => idByName.get(n)).filter(Boolean);
       if (tagIds.length) {
-        await supabase.from("task_tags").insert(tagIds.map((tag_id:any) => ({ task_id: task.id, tag_id })));
+        await supabase.from("task_tags").insert(tagIds.map((tag_id) => ({ task_id: task.id, tag_id })));
       }
     }
 
-    return NextResponse.json({ taskId: task.id }, { status: 201 });
-  } catch (e:any) {
+    let reminderId = null;
+    if (dueAtIso) {
+      const { data: settings } = await supabase
+        .from("settings")
+        .select("default_reminder_offset_minutes")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const offsetMinutes = settings?.default_reminder_offset_minutes ?? 30;
+      const dueMs = new Date(dueAtIso).getTime();
+      const remindAt = new Date(dueMs - Math.max(0, offsetMinutes) * 60_000).toISOString();
+
+      const { data: reminder, error: remErr } = await supabase
+        .from("reminders")
+        .insert({
+          task_id: task.id,
+          user_id: user.id,
+          remind_at: remindAt,
+          offset_minutes: offsetMinutes > 0 ? offsetMinutes : null,
+          status: "scheduled",
+          notification_status: "pending"
+        })
+        .select("id")
+        .single();
+
+      if (remErr) {
+        return NextResponse.json(
+          { error: "reminder_create_failed", details: remErr.message, taskId: task.id },
+          { status: 500 }
+        );
+      }
+      reminderId = reminder.id;
+    }
+
+    return NextResponse.json({ taskId: task.id, reminderId }, { status: 201 });
+  } catch (e) {
     return NextResponse.json({ error: "server_error", details: e?.message || String(e) }, { status: 500 });
   }
 }

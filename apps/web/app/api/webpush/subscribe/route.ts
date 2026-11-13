@@ -4,10 +4,9 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient, getAuthUser } from "@/lib/supabase-server";
+import { createServerClient, createRequestClient, getAuthUser } from "@/lib/supabase-server";
 import { z } from "zod";
 
-// Zod schema for PushSubscription JSON
 const PushSubscriptionSchema = z.object({
   endpoint: z.string().url(),
   keys: z.object({
@@ -18,15 +17,14 @@ const PushSubscriptionSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createServerClient();
     const authHeader = req.headers.get("authorization");
-    const user = await getAuthUser(supabase, authHeader);
+    const sessionClient = await createServerClient();
+    const user = await getAuthUser(sessionClient, authHeader);
 
     if (!user) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
-    // Parse and validate subscription
     const body = await req.json();
     const parsed = PushSubscriptionSchema.safeParse(body);
 
@@ -39,8 +37,8 @@ export async function POST(req: NextRequest) {
 
     const { endpoint, keys } = parsed.data;
     const { p256dh, auth } = keys;
+    const supabase = await createRequestClient(authHeader);
 
-    // Upsert subscription (replace if endpoint already exists for this user)
     const { error: dbError } = await supabase
       .from("web_push_subscriptions")
       .upsert(
@@ -62,8 +60,6 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
-
-    console.log(`[webpush/subscribe] Subscription saved for user ${user.id}`);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

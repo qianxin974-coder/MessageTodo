@@ -13,7 +13,8 @@ export const QuickAddSchema = z.object({
   description: z.string().max(5000).optional(),
   visibility: z.enum(["owner_only","household","work","public"]).optional(),
   priority: z.number().int().min(1).max(10).nullable().optional(),
-  tags: z.array(z.string().min(1).max(40)).optional()
+  tags: z.array(z.string().min(1).max(40)).optional(),
+  dueAt: z.string().datetime().optional() // ISO due; when set, also creates a reminders row
 });
 
 export type QuickAddInput = z.infer<typeof QuickAddSchema>;

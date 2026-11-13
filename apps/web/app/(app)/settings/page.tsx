@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { getSupabaseClient } from "../../../lib/supabase-client";
+import { registerWebPush, isSubscribedToWebPush, sendTestPush } from "../../../lib/webpush-client";
 import {
   Card,
   CardContent,
@@ -37,6 +38,9 @@ export default function SettingsPage() {
   const [poolName, setPoolName] = useState("");
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState<string | undefined>();
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushMsg, setPushMsg] = useState<string | undefined>();
 
   useEffect(() => {
     const supabase = getSupabaseClient();
@@ -133,6 +137,39 @@ export default function SettingsPage() {
     }
   };
 
+  
+  const handleEnablePush = async () => {
+    setPushBusy(true);
+    setPushMsg(undefined);
+    try {
+      const sub = await registerWebPush();
+      if (!sub) {
+        setPushMsg("未能开启通知（权限被拒或浏览器不支持）");
+        setPushSubscribed(false);
+        return;
+      }
+      setPushSubscribed(true);
+      setPushMsg("Web Push 已开启并保存订阅");
+    } catch (e) {
+      setPushMsg(e instanceof Error ? e.message : "开启失败");
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const handleTestPush = async () => {
+    setPushBusy(true);
+    setPushMsg(undefined);
+    try {
+      const ok = await sendTestPush("MessageTodo 测试", "真实 Web Push 验收");
+      setPushMsg(ok ? "测试推送已发送" : "测试推送失败");
+    } catch (e) {
+      setPushMsg(e instanceof Error ? e.message : "测试失败");
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{
@@ -177,6 +214,39 @@ export default function SettingsPage() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
+        
+        {/* Web Push */}
+        <Card>
+          <CardContent>
+            <h3 style={{
+              fontSize: '16px',
+              fontWeight: 600,
+              color: resolvedColors.text.primary,
+              margin: `0 0 ${spacing.md} 0`
+            }}>
+              Web Push 通知
+            </h3>
+            <p style={{
+              fontSize: '14px',
+              color: resolvedColors.text.secondary,
+              margin: `0 0 ${spacing.md} 0`
+            }}>
+              状态：{pushSubscribed ? "已订阅" : "未订阅"}
+            </p>
+            <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
+              <Button size="sm" variant="primary" onClick={handleEnablePush} disabled={pushBusy || !user}>
+                {pushBusy ? "处理中…" : "开启通知"}
+              </Button>
+              <Button size="sm" variant="secondary" onClick={handleTestPush} disabled={pushBusy || !pushSubscribed}>
+                发送测试推送
+              </Button>
+            </div>
+            {pushMsg && (
+              <p style={{ marginTop: spacing.sm, fontSize: '13px', color: resolvedColors.text.secondary }}>{pushMsg}</p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Pools Section */}
         <Card>
           <CardContent>
